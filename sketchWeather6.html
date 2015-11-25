@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">    
+    <style>
+
+      body {
+        font: 10px sans-serif;
+      }
+      .axis path,
+      .axis line {
+        fill: none;
+        stroke: #000;
+        shape-rendering: crispEdges;
+      }
+      .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+      }
+  
+    </style>
+  </head>
+  <body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.5/d3.min.js"></script>
+    <script>
+//Set up the canvas
+      var margin = {top: 20, right: 80, bottom: 30, left: 50},
+          width = 1260 - margin.left - margin.right,
+          height = 700 - margin.top - margin.bottom;
+
+//Add Title
+      d3.select("body")
+        .append("h2")
+        .text("New York Weather, Temperature, Sonw and IceFog  (Data source: National Centers for Environmental Information)");
+//Get date 
+      var parseDate = d3.time.format("%Y%m%d").parse;
+
+      var x = d3.time.scale()
+          .range([0, width]);
+
+      var y = d3.scale.linear()
+          .range([height, 0]);
+//Draw all data set to glance at the data
+      var color = d3.scale.category10();
+
+      var xAxis = d3.svg.axis()
+          .scale(x)
+          .orient("bottom");
+
+      var yAxis = d3.svg.axis()
+          .scale(y)
+          .orient("left");
+//Add line to better represent trends
+      var line = d3.svg.line()
+          .interpolate("basis")
+          .x(function(d) { return x(d.date); })
+          .y(function(d) { return y(d.temperature); });
+
+      var svg = d3.select("body").append("svg")
+          .attr("width", width + margin.left + margin.right)
+          .attr("height", height + margin.top + margin.bottom)
+          .append("g")
+          .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+//Load data and for each column draw a data and lable
+      d3.csv("WeatherNY6.csv", function(error, data) {
+        if (error) throw error;
+        color.domain(d3.keys(data[0]).filter(function(key) { return key !== "date"; }));
+        data.forEach(function(d) {
+          d.date = parseDate(d.date);
+        });
+        var column = color.domain().map(function(name) {
+          return {
+            name: name,
+            values: data.map(function(d) {
+              return {date: d.date, temperature: +d[name]};
+            })
+          };
+        });
+
+        x.domain(d3.extent(data, function(d) { return d.date; }));
+
+        y.domain([
+          d3.min(column, function(c) { return d3.min(c.values, function(v) { return v.temperature; }); }),
+          d3.max(column, function(c) { return d3.max(c.values, function(v) { return v.temperature; }); })
+        ]);
+
+        svg.append("g")
+            .attr("class", "x axis")
+            .attr("transform", "translate(0," + height + ")")
+            .call(xAxis);
+//Add y axis info 
+        svg.append("g")
+            .attr("class", "y axis")
+            .call(yAxis)
+            .append("text")
+            .attr("transform", "rotate(-90)")
+            .attr("y", 6)
+            .attr("dy", ".71em")
+            .style("text-anchor", "end")
+            .text("Temperature (ºC)");
+
+        var TempType = svg.selectAll(".TempType")
+            .data(column)
+            .enter()
+            .append("g")
+            .attr("class", "TempType");
+
+        TempType.append("path")
+            .attr("class", "line")
+            .attr("d", function(d) { return line(d.values); })
+            .style("stroke", function(d) { return color(d.name); })
+            .attr('opacity',0.9);
+
+        TempType.append("text")
+            .datum(function(d) { return {name: d.name, value: d.values[d.values.length - 1]}; })
+            .attr("transform", function(d) { return "translate(" + x(d.value.date) + "," + y(d.value.temperature) + ")"; })
+            .attr("x", 3)
+            .attr("dy", "1.35em")
+            .text(function(d) { return d.name; });
+//Iterater through each year to get a detail view of the data 
+        function update(year) {
+//The data end at 2014 when year === 2014 it will show all data
+          var time_extent = d3.extent(data,function(d){
+              if(d['date'].getFullYear() === year){
+                return d['date'];}
+              else if(year === 2014){return d['date'];} 
+            });
+//set time aixs
+          var time_scale = d3.time.scale()
+              .range([margin.left,width])
+              .domain(time_extent);
+
+          var time_axis = d3.svg.axis()
+              .scale(time_scale)
+              .ticks(d3.time.auto);
+//set temperature axis
+          var temp_extent = d3.extent(data,function(d){
+              return +d['3LowAve'];
+            });
+           
+          var temp_scale = d3.scale.linear()
+              .range([height,margin.top])
+              .domain(temp_extent);
+            //debugger;
+           
+          var temp_axis = d3.svg.axis()
+              .scale(temp_scale)
+              .orient("left");
+
+//Remove old graph and add new elements
+          d3.selectAll("g").remove();
+          d3.select("svg")
+            .append("g")
+            .attr('class','x axis')
+            .attr('transform',"translate(0," + height + ")")
+            .call(time_axis);
+          d3.select("svg")
+            .append("g")
+            .attr('class','y axis')
+            .attr('transform',"translate(" + margin.left + ",0)")
+            .call(temp_axis);
+          
+          d3.select('svg')
+            .selectAll("circle")
+            .data(data)
+            .enter()
+            .append("circle");
+//Draw the data for each year with grey at the begining , if not that year use white to hide them
+          d3.selectAll('circle')
+            .attr('cx',function(d){
+                return  time_scale(d['date']);
+              })
+            .attr('cy',function(d){
+                return temp_scale(d['3LowAve']);
+              })
+            .attr('r',function(d){return 3.5;})
+            .attr('fill',function(d){
+                if(d["date"].getFullYear()===year || year === 2014) return 'grey'; else return 'white';}
+              );
+
+  //Show four different type of weather and give them different color
+  // Snow and IceFog is red
+  // Snow without IceFog is blue
+  // IceFog with Snow is green
+  // No snow and no IceFog is grey 
+          d3.selectAll('circle')
+            .attr('cx',function(d){
+                return  time_scale(d['date']);
+              })
+            .attr('cy',function(d){
+                return temp_scale(d['3LowAve']);
+              })
+            .transition()
+            .delay(500)
+            .duration(1000)
+            .attr('opacity',0.8)
+            .attr('r',function(d){return 3+d['IceFog']*2+d['Snow']*1;})
+            .attr('fill',function(d){
+              if(d["date"].getFullYear()===year || year === 2014){
+                if(+d["Snow"] === 0){return 'gray';}
+                  else if(+d["IceFog"] === 0){ return 'green';}
+                  else{ if(+d["IceFog"]===1){return 'red'}
+                else{return 'blue';}};}
+              else{return 'white';}
+              });
+
+  //Here add 4 types of legend and color them with coresponding color
+            d3.select('svg')
+                 .append('ellipse')
+                 .attr('cx',77)
+                 .attr('cy',10)
+                 .attr('rx',8)
+                 .attr('ry',8)
+                 .attr('fill','red')
+                 .attr('text','red');
+
+            d3.select('svg')
+                 .append('text')
+                 .attr('x',92)
+                 .attr('y',14)
+                 .text('Snow and IceFog---------14')
+                 .attr("font-family", "sans-serif")
+                 .attr("font-size",'12px')               
+                 .attr('fill','red');    
+
+            d3.select('svg')
+                 .append('ellipse')
+                 .attr('cx',77)
+                 .attr('cy',30)
+                 .attr('rx',8)
+                 .attr('ry',8)
+                 .attr('fill','green');
+
+            d3.select('svg')
+                 .append('text')
+                 .attr('x',92)
+                 .attr('y',34)
+                 .text('IceFog without Snow-----83')
+                 .attr("font-family", "sans-serif")
+                 .attr("font-size",'12px')
+                 .attr('fill','green');   
+
+             d3.select('svg')
+                 .append('ellipse')
+                 .attr('cx',77)
+                 .attr('cy',50)
+                 .attr('rx',8)
+                 .attr('ry',8)
+                 .attr('fill','blue');
+
+            d3.select('svg')
+                 .append('text')
+                 .attr('x',92)
+                 .attr('y',54)
+                 .text('Snow without IceFog-----0')
+                 .attr("font-family", "sans-serif")
+                 .attr("font-size",'12px')
+                 .attr('fill','blue');
+
+            d3.select('svg')
+                 .append('ellipse')
+                 .attr('cx',77)
+                 .attr('cy',70)
+                 .attr('rx',8)
+                 .attr('ry',8)
+                 .attr('fill','grey');
+
+            d3.select('svg')
+                 .append('text')
+                 .attr('x',92)
+                 .attr('y',74)
+                 .text('No Snow no IceFog-----1243')
+                 .attr("font-family", "sans-serif")
+                 .attr("font-size",'12px')
+                 .attr('fill','grey');
+
+  //Add text on the y axis
+             d3.select('svg')
+                .call(temp_axis)
+                .append("text")
+                .attr("transform", "rotate(-90)")
+                .attr("y", 6)
+                .attr("dy", ".71em")
+                .style("text-anchor", "end")
+                .text("Temperature Daily Low (ºC)");
+  //Add x axis
+            d3.select("svg")
+                .append("g")
+                .attr('class','x axis')
+                .attr('transform',"translate(0," + height + ")")
+                .call(time_axis);
+      };
+  //set interval t 
+      var t = 6000
+      var years = [];
+  //Here cycle through 2010 to 2015, 2015 means it will show the final picture
+      for(var i = 2010; i < 2015; i += 1) { years.push(i);}
+
+      var year_idx = 0;
+      var year_interval = 
+        setInterval(function() {
+        update(years[year_idx]);
+        year_idx++;
+        if(year_idx >= years.length){
+            clearInterval(year_interval);
+        }
+      }, t);
+
+    });
+//Color the area that will have snow and Ice Fog
+      d3.select('svg')
+        .append('rect')
+        .transition()
+        .attr('x',50)
+        .attr('y',397)
+        .attr('width',  1270 - margin.left - margin.right)
+        .attr('height',251)
+        .attr('fill','green')
+        .attr('opacity','0.2')
+        .delay(33000)
+        .duration(500);
+
+      d3.select('svg')
+        .append('rect')
+        .transition()
+        .attr('x',50)
+        .attr('y',440)
+        .attr('width',  1260 - margin.left - margin.right)
+        .attr('height',210)
+        .attr('fill','red')
+        .attr('opacity','0.2')
+        .delay(33000)
+        .duration(500);
+
+         </script>
+    </body>
+</html>

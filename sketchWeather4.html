@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script src="http://d3js.org/d3.v3.min.js"></script>
+    <script src="http://dimplejs.org/dist/dimple.v2.0.0.min.js"></script>
+    
+    <style>
+      /*circle {
+        fill: red;
+      }*/
+      .axis path,
+      .axis line{
+        stroke: #000
+        shape-rendering:crispEdges;
+        }
+      .line {
+        fill: none;
+        stroke: steelblue;
+        stroke-width: 1.5px;
+      h2{
+        text-align: center;
+      }
+}
+
+
+    </style>
+
+    <script type="text/javascript">
+//This function will draw all the graph 
+      function draw(data) {
+
+          "use strict";
+          var margin = 75,
+              width = 1400 - margin,
+              height = 600 - margin;
+
+          var radius = 3,
+              multiplier = 2;
+
+          d3.select("body")
+              .append("h2")
+              .text("SP500 index ");
+
+          d3.select("body")
+            .append("lengend")
+            .text(" SP500 Index / Temperature");
+
+          var svg = d3.select("body")
+            .append("svg")
+              .attr("width", width + margin)
+              .attr("height", height + margin)
+            .append('g','axis')
+                .attr('class','chart');
+
+          d3.select('svg')
+            .selectAll("circle")
+            .data(data)
+            .enter()
+            .append("circle");
+          d3.select('svg')
+            .selectAll("rect")
+            .data(data)
+            .enter()
+            .append("rect");
+
+          var time_extent = d3.extent(data,function(d){
+            return d['Date']; 
+          });
+          var time_scale = d3.time.scale()
+            .range([margin,width])
+            .domain(time_extent);
+          var time_axis = d3.svg.axis()
+            .scale(time_scale)
+            .ticks(d3.time.month,4);
+ 
+
+//Use BadWeather to check wether there is a dependency between bad weather and stock value
+          var temp_extent = d3.extent(data,function(d){
+            return d['3DayAverage'];
+          });
+         
+          var temp_scale = d3.scale.linear()
+            .range([height,margin])
+            .domain(temp_extent);
+          //debugger;
+         
+          var temp_axis = d3.svg.axis()
+            .scale(temp_scale)
+            .orient("left");
+
+          var line = d3.svg.line()
+              .x(function(d) {return time_scale(d["Date"]);})
+              .y(function(d){return temp_scale(d['3DayAverage']);})
+
+          d3.select("svg").append("g").attr('class','x axis').attr('transform',"translate(0," + height + ")").call(time_axis);
+          d3.select("svg").append("g").attr('class','y axis').attr('transform',"translate(" + margin + ",0)").call(temp_axis);
+
+
+          d3.selectAll('circle')
+            .attr('cx',function(d){
+              return  time_scale(d['Date']);
+            })
+            .attr('cy',function(d){
+              return temp_scale(d['3DayAverage']);
+            })
+            .attr('r',3)
+            .attr('fill','green');
+
+          d3.selectAll('circle')
+            .attr('cx',function(d){
+              return  time_scale(d['Date']);
+            })
+            .attr('cy',function(d){
+              return temp_scale(d['High']);
+            })
+            .attr('r',3)
+            .attr('fill','blue');
+
+              
+
+            svg.append('path')
+              .datum(data)
+              .attr("class","line")
+              .attr("d",line);
+
+ //Because the points are very close to each other and overlape a lot 
+ //This function will cycle through every year to see the detail in 
+ //individual year from 2010 to 2015 
+ // Note that when year === 2016 it will draw the big graph with every
+ //year's information.     
+    
+      function update(year) {
+
+        var time_extent = d3.extent(data,function(d){
+            if(d['Date'].getFullYear() === year){
+              return d['Date'];}
+            else if(year === 2016){return d['Date'];} 
+          });
+        var time_scale = d3.time.scale()
+            .range([margin,width])
+            .domain(time_extent);
+        var time_axis = d3.svg.axis()
+            .scale(time_scale)
+            .ticks(d3.time.auto);
+        d3.selectAll("g").remove();
+
+        d3.select("svg").append("g").attr('class','x axis').attr('transform',"translate(0," + height + ")").call(time_axis);
+        d3.select("svg").append("g").attr('class','y axis').attr('transform',"translate(" + margin + ",0)").call(temp_axis);
+
+        d3.selectAll('circle').remove();
+        
+            d3.select('svg')
+            .selectAll("circle")
+            .data(data)
+            .enter()
+            .append("circle");
+
+            d3.selectAll('circle')
+            .attr('cx',function(d){
+              return  time_scale(d['Date']);
+            })
+            .attr('cy',function(d){
+              return temp_scale(d['3DayAverage']);
+            })
+            .attr('r',3)
+            .attr('fill',function(d){
+              if(d["Date"].getFullYear()===year || year === 2016){
+                return 'green';
+              }
+              else{return 'white';}
+            });
+
+            svg.append('path')
+              .datum(data)
+              .attr("class","line")
+              .attr("d",line);
+
+            //stock use rectangle to represent, it's size equals to the volume
+            //The color indicates weather there is a bad weather or not 
+            //Red means bad weather, blue means good weather, white is used to 
+            //eliminate possible null value
+            
+      //debugger;
+
+
+      };
+      //Here cycle through 2010 to 2016, 2016 means it will return to 
+      //the big picture.
+      var years = [];
+
+          for(var i = 2010; i < 2017; i += 1) {
+              years.push(i);
+          }
+          var year_idx = 0;
+
+          var year_interval = setInterval(function() {
+            update(years[year_idx]);
+
+            year_idx++;
+
+            if(year_idx >= years.length) {
+                clearInterval(year_interval);
+            }
+          }, 20000);
+
+        };
+
+    </script>
+  </head>
+<body>
+
+  <script type="text/javascript">
+  /*
+    Use D3 (not dimple.js) to load the CSV file
+    and pass the contents of it to the draw function
+    */
+
+  format = d3.time.format("%Y%m%d","%Y/%m");
+
+  d3.csv("WeatherNY.csv",function(d){
+      d['Date'] = format.parse(d['DATE']);
+      //d['Low'] = +d['Low'];
+      d['BadWeather'] = +d['BadWeather'];
+      d['3DayAverage'] = +d['3DayAverage'];
+      d['High'] =  +d['TMAX']/10;
+      d['Low'] = +d['TMIN']/10;
+      return d;
+    },draw);
+
+     
+  </script>
+</body>
+</html>

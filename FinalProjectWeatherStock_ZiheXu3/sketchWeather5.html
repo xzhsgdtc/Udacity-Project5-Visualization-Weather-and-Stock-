@@ -1,0 +1,41 @@
+
+
+<html>
+<div id="chartContainer">
+  <script src="http://d3js.org/d3.v3.min.js"></script>
+  <script src="http://dimplejs.org/dist/dimple.v2.1.6.min.js"></script>
+  <script type="text/javascript">
+//Add a bar plot 
+    var svg = dimple.newSvg("#chartContainer", 700, 440);
+//Add title
+    svg.append("text")
+       .attr("x", 300)
+       .attr("y", 50)
+       .style("text-anchor", "middle")
+       .style("font-family", "sans-serif")
+       .style("font-weight", "bold")
+       .text("5 Years's NewYork Weather Data: Snow&IceFog counts vs Daily Low")
+
+    d3.csv("WeatherNY8.csv", function (data) {
+      var myChart = new dimple.chart(svg, data);
+      myChart.setBounds(60, 80, 505, 305);
+      var x = myChart.addCategoryAxis("x", "lowTemp");
+      x.addOrderRule("lowTemp");
+      myChart.addMeasureAxis("y", "IceFog_Snow_Count");
+      x.title = 'lowTemp  / Celsius'; 
+      var s = myChart.addSeries('weather', dimple.plot.bar);
+      myChart.addLegend(140, 190, 500, 20, "right");
+ 
+
+ 
+       .text("IceFog happends more than snow and there is no snow without IceFog.")   
+
+    });
+ 
+
+
+      myChart.draw();
+    });
+  </script>
+</div>
+</html>
